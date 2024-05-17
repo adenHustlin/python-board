@@ -31,3 +31,11 @@ async def update_board(
         await db.commit()
         await db.refresh(db_board)
     return db_board
+
+
+# Time complexity: O(1) for each database operation
+async def delete_board(db: AsyncSession, board_id: int, user_id: int):
+    db_board = await get_board(db, board_id)
+    if db_board and db_board.owner_id == user_id:
+        await db.delete(db_board)
+        await db.commit()
