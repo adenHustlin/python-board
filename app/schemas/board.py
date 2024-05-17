@@ -14,3 +14,8 @@ class BoardOut(BaseModel):
 
     class Config:
         orm_mode = True
+
+
+class BoardUpdate(BaseModel):
+    name: str
+    public: bool
