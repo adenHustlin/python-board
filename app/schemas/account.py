@@ -14,3 +14,12 @@ class AccountOut(BaseModel):
 
     class Config:
         orm_mode = True
+
+
+class Token(BaseModel):
+    access_token: str
+    token_type: str
+
+
+class TokenData(BaseModel):
+    account_id: int | None = None
