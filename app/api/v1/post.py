@@ -1,11 +1,13 @@
-from fastapi import APIRouter, Depends, HTTPException
+from typing import Optional
+
+from fastapi import APIRouter, Depends, HTTPException, Query
 from sqlalchemy.ext.asyncio import AsyncSession
 
-from app.crud.post import create_post, update_post
+from app.crud.post import create_post, get_posts_by_board, update_post
 from app.db.models import Account
 from app.db.session import get_db
 from app.dependencies import get_current_account
-from app.schemas.post import PostCreate, PostOut, PostUpdate
+from app.schemas.post import PostCreate, PostList, PostOut, PostUpdate
 
 router = APIRouter()
 
@@ -55,7 +57,21 @@ from app.crud.post import delete_post
 async def delete_existing_post(
     post_id: int,
     db: AsyncSession = Depends(get_db),
-    current_user: int = Depends(get_current_account),
+    current_user: Account = Depends(get_current_account),
 ):
     await delete_post(db, post_id, current_user.id)
     return {"message": "Post deleted successfully"}
+
+
+@router.get("/posts", response_model=PostList)
+async def list_posts(
+    board_id: int,
+    limit: int = Query(10, le=100),
+    cursor: Optional[int] = Query(None),
+    db: AsyncSession = Depends(get_db),
+    current_user: Account = Depends(get_current_account),
+):
+    total, posts, next_cursor = await get_posts_by_board(
+        db, board_id, current_user.id, limit=limit, cursor=cursor
+    )
+    return {"posts": posts, "total": total, "next_cursor": next_cursor}

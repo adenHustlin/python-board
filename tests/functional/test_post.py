@@ -161,3 +161,53 @@ async def test_delete_post(client, async_db_session):
 
     response = await client.get(f"/api/v1/post/{post_id}", headers=headers)
     assert response.status_code == status.HTTP_404_NOT_FOUND
+
+
+@pytest.mark.asyncio
+async def test_list_posts(client, async_db_session):
+    account_in = {
+        "fullname": "Test User",
+        "email": "testuser@example.com",
+        "password": "password123",
+    }
+    created_account = await client.post("/api/v1/signup", json=account_in)
+    login_response = await client.post(
+        "/api/v1/login",
+        data={"username": "testuser@example.com", "password": "password123"},
+    )
+    access_token = login_response.json()["access_token"]
+
+    headers = {"Authorization": f"Bearer {access_token}"}
+
+    board_in = {"name": "Test Board", "public": True}
+    create_board_response = await client.post(
+        "/api/v1/board", json=board_in, headers=headers
+    )
+    board_id = create_board_response.json()["id"]
+
+    for i in range(15):
+        post_in = {
+            "board_id": board_id,
+            "title": f"Test Post {i}",
+            "content": "This is a test post.",
+        }
+        await client.post("/api/v1/post", json=post_in, headers=headers)
+
+    response = await client.get(
+        f"/api/v1/posts?board_id={board_id}&limit=10", headers=headers
+    )
+    assert response.status_code == status.HTTP_200_OK
+    posts = response.json()
+    assert posts["total"] == 15
+    assert len(posts["posts"]) == 10
+    assert posts["next_cursor"] is not None
+
+    response = await client.get(
+        f"/api/v1/posts?board_id={board_id}&limit=10&cursor={posts['next_cursor']}",
+        headers=headers,
+    )
+    assert response.status_code == status.HTTP_200_OK
+    posts = response.json()
+    assert posts["total"] == 15
+    assert len(posts["posts"]) == 5
+    assert posts["next_cursor"] is None
