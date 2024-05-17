@@ -23,3 +23,15 @@ async def create_post(db: AsyncSession, post: PostCreate, user_id: int) -> Post:
     await db.commit()
     await db.refresh(db_post)
     return db_post
+
+
+# Time complexity: O(1) for each database operation
+async def get_post(db: AsyncSession, post_id: int, user_id: int) -> Post:
+    query = (
+        select(Post)
+        .join(Board)
+        .filter(Post.id == post_id)
+        .filter((Board.public == True) | (Board.owner_id == user_id))
+    )
+    result = await db.execute(query)
+    return result.scalars().first()
