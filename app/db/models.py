@@ -13,7 +13,7 @@ class Account(Base):
     hashed_password = Column(String)
 
     boards = relationship("Board", back_populates="owner")
-    posts = relationship("Post", back_populates="author")
+    posts = relationship("Post", back_populates="owner")
 
 
 class Board(Base):
@@ -24,6 +24,7 @@ class Board(Base):
     public = Column(Boolean, default=True)
     owner_id = Column(Integer, ForeignKey("account.id"))
     post_count = Column(Integer, default=0)
+
     owner = relationship("Account", back_populates="boards")
     posts = relationship("Post", back_populates="board")
 
@@ -35,7 +36,7 @@ class Post(Base):
     title = Column(String, index=True)
     content = Column(Text)
     board_id = Column(Integer, ForeignKey("board.id"))
-    author_id = Column(Integer, ForeignKey("account.id"))
+    owner_id = Column(Integer, ForeignKey("account.id"))
 
     board = relationship("Board", back_populates="posts")
-    author = relationship("Account", back_populates="posts")
+    owner = relationship("Account", back_populates="posts")
