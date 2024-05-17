@@ -1,7 +1,7 @@
-from fastapi import APIRouter, Depends
+from fastapi import APIRouter, Depends, HTTPException
 from sqlalchemy.ext.asyncio import AsyncSession
 
-from app.crud.board import create_board
+from app.crud.board import create_board, get_board
 from app.db.models import Account
 from app.db.session import get_db
 from app.dependencies import get_current_account
@@ -18,3 +18,15 @@ async def create_new_board(
 ):
     new_board = await create_board(db, board, current_user.id)
     return new_board
+
+
+@router.get("/board/{board_id}", response_model=BoardOut)
+async def read_board(
+    board_id: int,
+    db: AsyncSession = Depends(get_db),
+    current_user: int = Depends(get_current_account),
+):
+    db_board = await get_board(db, board_id)
+    if not db_board or (not db_board.public and db_board.owner_id != current_user.id):
+        raise HTTPException(status_code=404, detail="Board not found")
+    return db_board
