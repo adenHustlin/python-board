@@ -34,3 +34,8 @@ async def create_session(account_id: int):
         ex=settings.ACCESS_TOKEN_EXPIRE_MINUTES * 60,
     )
     return access_token
+
+
+# Time complexity: O(1)
+async def destroy_session(account_id: int):
+    await redis_client.delete(f"session:{account_id}")

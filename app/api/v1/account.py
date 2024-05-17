@@ -3,9 +3,11 @@ from fastapi.security import OAuth2PasswordRequestForm
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.crud.account import create_account, get_account_by_email
+from app.db.models import Account
 from app.db.session import get_db
+from app.dependencies import get_current_account
 from app.schemas.account import AccountCreate, AccountOut, Token
-from app.services.auth import authenticate_account, create_session
+from app.services.auth import authenticate_account, create_session, destroy_session
 
 router = APIRouter()
 
@@ -31,3 +33,9 @@ async def login(
         )
     access_token = await create_session(account.id)
     return {"access_token": access_token, "token_type": "bearer"}
+
+
+@router.post("/logout")
+async def logout(current_user: Account = Depends(get_current_account)):
+    await destroy_session(current_user.id)
+    return {"message": "Logged out successfully"}

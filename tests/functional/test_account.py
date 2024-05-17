@@ -30,3 +30,20 @@ async def test_login(client, async_db_session):
     token = response.json()
     assert "access_token" in token
     assert token["token_type"] == "bearer"
+
+
+@pytest.mark.asyncio
+async def test_logout(client, async_db_session):
+    account_in = AccountCreate(
+        fullname="Test User", email="testuser@example.com", password="password123"
+    )
+    await client.post("/api/v1/signup", json=account_in.dict())
+    response = await client.post(
+        "/api/v1/login",
+        data={"username": "testuser@example.com", "password": "password123"},
+    )
+    token = response.json()["access_token"]
+    headers = {"Authorization": f"Bearer {token}"}
+    response = await client.post("/api/v1/logout", headers=headers)
+    assert response.status_code == status.HTTP_200_OK
+    assert response.json() == {"message": "Logged out successfully"}
