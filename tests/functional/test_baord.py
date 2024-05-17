@@ -111,3 +111,40 @@ async def test_delete_existing_board(client, async_db_session):
     response = await client.delete(f"/api/v1/board/{board_id}", headers=headers)
     assert response.status_code == status.HTTP_200_OK
     assert response.json() == {"message": "Board deleted"}
+
+
+@pytest.mark.asyncio
+async def test_list_boards(client, async_db_session):
+    account_in = {
+        "fullname": "Test User",
+        "email": "testuser@example.com",
+        "password": "password123",
+    }
+    await client.post("/api/v1/signup", json=account_in)
+    login_response = await client.post(
+        "/api/v1/login",
+        data={"username": "testuser@example.com", "password": "password123"},
+    )
+    access_token = login_response.json()["access_token"]
+
+    headers = {"Authorization": f"Bearer {access_token}"}
+
+    for i in range(15):
+        board_in = {"name": f"Test Board {i}", "public": True}
+        await client.post("/api/v1/board", json=board_in, headers=headers)
+
+    response = await client.get("/api/v1/boards?limit=10", headers=headers)
+    assert response.status_code == status.HTTP_200_OK
+    boards = response.json()
+    assert boards["total"] == 15
+    assert len(boards["boards"]) == 10
+    assert boards["next_cursor"] is not None
+
+    response = await client.get(
+        f"/api/v1/boards?limit=10&cursor={boards['next_cursor']}", headers=headers
+    )
+    assert response.status_code == status.HTTP_200_OK
+    boards = response.json()
+    assert boards["total"] == 15
+    assert len(boards["boards"]) == 5
+    assert boards["next_cursor"] is None

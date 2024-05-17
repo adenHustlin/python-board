@@ -1,4 +1,6 @@
-from sqlalchemy import select
+from typing import Optional
+
+from sqlalchemy import func, select
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.db.models import Board
@@ -39,3 +41,40 @@ async def delete_board(db: AsyncSession, board_id: int, user_id: int):
     if db_board and db_board.owner_id == user_id:
         await db.delete(db_board)
         await db.commit()
+
+
+async def get_boards(
+    db: AsyncSession,
+    user_id: int,
+    limit: int = 10,
+    cursor: Optional[int] = None,
+    offset: int = 0,
+) -> (int, list[Board], Optional[int]):
+    base_query = select(Board).filter(
+        (Board.owner_id == user_id) | (Board.public == True)
+    )
+
+    if cursor:
+        base_query = base_query.filter(Board.id > cursor)
+
+    # 전체 게시판 수를 계산하는 쿼리 (커서를 적용하지 않음)
+    total_query = select(func.count(Board.id)).filter(
+        (Board.owner_id == user_id) | (Board.public == True)
+    )
+
+    total_result = await db.execute(total_query)
+    total = total_result.scalar()
+
+    query = base_query.order_by(Board.id).offset(offset).limit(limit + 1)
+    result = await db.execute(query)
+    boards = result.scalars().all()
+
+    if len(boards) > limit:
+        next_cursor = boards[
+            -2
+        ].id  # If there are more records, use the second last ID as next cursor
+        boards = boards[:-1]  # Remove the last element
+    else:
+        next_cursor = None
+
+    return total, boards, next_cursor

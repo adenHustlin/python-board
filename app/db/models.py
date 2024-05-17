@@ -23,7 +23,7 @@ class Board(Base):
     name = Column(String, unique=True, index=True)
     public = Column(Boolean, default=True)
     owner_id = Column(Integer, ForeignKey("account.id"))
-
+    post_count = Column(Integer, default=0)
     owner = relationship("Account", back_populates="boards")
     posts = relationship("Post", back_populates="board")
 
