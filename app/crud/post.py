@@ -48,3 +48,11 @@ async def update_post(
         await db.commit()
         await db.refresh(db_post)
     return db_post
+
+
+# Time complexity: O(1) for each database operation
+async def delete_post(db: AsyncSession, post_id: int, user_id: int) -> None:
+    db_post = await get_post(db, post_id, user_id)
+    if db_post and db_post.owner_id == user_id:
+        await db.delete(db_post)
+        await db.commit()

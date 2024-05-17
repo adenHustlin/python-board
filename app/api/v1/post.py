@@ -46,3 +46,16 @@ async def update_existing_post(
     if not updated_post:
         raise HTTPException(status_code=404, detail="Post not found or not permitted")
     return updated_post
+
+
+from app.crud.post import delete_post
+
+
+@router.delete("/post/{post_id}", response_model=None)
+async def delete_existing_post(
+    post_id: int,
+    db: AsyncSession = Depends(get_db),
+    current_user: int = Depends(get_current_account),
+):
+    await delete_post(db, post_id, current_user.id)
+    return {"message": "Post deleted successfully"}
