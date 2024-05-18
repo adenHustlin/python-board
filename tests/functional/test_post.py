@@ -1,30 +1,46 @@
 import pytest
+from fastapi import status
+
+from app.schemas.board import BoardCreate
+
+
+@pytest.fixture
+async def get_token_header(client, async_db_session):
+    async def _get_token_header():
+        account_in = {
+            "fullname": "Test User",
+            "email": "testuser@example.com",
+            "password": "password123",
+        }
+        await client.post("/api/v1/signup", json=account_in)
+        response = await client.post(
+            "/api/v1/login",
+            data={"username": "testuser@example.com", "password": "password123"},
+        )
+        access_token = response.json()["access_token"]
+        return {"Authorization": f"Bearer {access_token}"}
+
+    return _get_token_header
+
+
+@pytest.fixture
+async def create_board(client, get_token_header):
+    async def _create_board():
+        headers = await get_token_header()
+        board_in = BoardCreate(name="Test Board", public=True)
+        response = await client.post(
+            "/api/v1/board", json=board_in.dict(), headers=headers
+        )
+        return response.json(), headers
+
+    return _create_board
 
 
 @pytest.mark.asyncio
-async def test_create_new_post(client, async_db_session):
-    account_in = {
-        "fullname": "Test User",
-        "email": "testuser@example.com",
-        "password": "password123",
-    }
-    created_account = await client.post("/api/v1/signup", json=account_in)
-    login_response = await client.post(
-        "/api/v1/login",
-        data={"username": "testuser@example.com", "password": "password123"},
-    )
-    access_token = login_response.json()["access_token"]
-
-    headers = {"Authorization": f"Bearer {access_token}"}
-
-    board_in = {"name": "Test Board", "public": True}
-    create_board_response = await client.post(
-        "/api/v1/board", json=board_in, headers=headers
-    )
-    board_id = create_board_response.json()["id"]
-
+async def test_create_new_post(client, create_board):
+    board, headers = await create_board()
     post_in = {
-        "board_id": board_id,
+        "board_id": board["id"],
         "title": "Test Post",
         "content": "This is a test post.",
     }
@@ -33,37 +49,14 @@ async def test_create_new_post(client, async_db_session):
     post = response.json()
     assert post["title"] == "Test Post"
     assert post["content"] == "This is a test post."
-    assert post["owner_id"] == created_account.json()["id"]
-
-
-import pytest
-from fastapi import status
+    assert post["owner_id"] == board["owner_id"]
 
 
 @pytest.mark.asyncio
-async def test_read_post(client, async_db_session):
-    account_in = {
-        "fullname": "Test User",
-        "email": "testuser@example.com",
-        "password": "password123",
-    }
-    created_account = await client.post("/api/v1/signup", json=account_in)
-    login_response = await client.post(
-        "/api/v1/login",
-        data={"username": "testuser@example.com", "password": "password123"},
-    )
-    access_token = login_response.json()["access_token"]
-
-    headers = {"Authorization": f"Bearer {access_token}"}
-
-    board_in = {"name": "Test Board", "public": True}
-    create_board_response = await client.post(
-        "/api/v1/board", json=board_in, headers=headers
-    )
-    board_id = create_board_response.json()["id"]
-
+async def test_read_post(client, create_board):
+    board, headers = await create_board()
     post_in = {
-        "board_id": board_id,
+        "board_id": board["id"],
         "title": "Test Post",
         "content": "This is a test post.",
     }
@@ -77,33 +70,14 @@ async def test_read_post(client, async_db_session):
     post = response.json()
     assert post["title"] == "Test Post"
     assert post["content"] == "This is a test post."
-    assert post["owner_id"] == created_account.json()["id"]
+    assert post["owner_id"] == board["owner_id"]
 
 
 @pytest.mark.asyncio
-async def test_update_post(client, async_db_session):
-    account_in = {
-        "fullname": "Test User",
-        "email": "testuser@example.com",
-        "password": "password123",
-    }
-    created_account = await client.post("/api/v1/signup", json=account_in)
-    login_response = await client.post(
-        "/api/v1/login",
-        data={"username": "testuser@example.com", "password": "password123"},
-    )
-    access_token = login_response.json()["access_token"]
-
-    headers = {"Authorization": f"Bearer {access_token}"}
-
-    board_in = {"name": "Test Board", "public": True}
-    create_board_response = await client.post(
-        "/api/v1/board", json=board_in, headers=headers
-    )
-    board_id = create_board_response.json()["id"]
-
+async def test_update_post(client, create_board):
+    board, headers = await create_board()
     post_in = {
-        "board_id": board_id,
+        "board_id": board["id"],
         "title": "Test Post",
         "content": "This is a test post.",
     }
@@ -120,33 +94,14 @@ async def test_update_post(client, async_db_session):
     post = response.json()
     assert post["title"] == "Updated Post"
     assert post["content"] == "This is an updated test post."
-    assert post["owner_id"] == created_account.json()["id"]
+    assert post["owner_id"] == board["owner_id"]
 
 
 @pytest.mark.asyncio
-async def test_delete_post(client, async_db_session):
-    account_in = {
-        "fullname": "Test User",
-        "email": "testuser@example.com",
-        "password": "password123",
-    }
-    created_account = await client.post("/api/v1/signup", json=account_in)
-    login_response = await client.post(
-        "/api/v1/login",
-        data={"username": "testuser@example.com", "password": "password123"},
-    )
-    access_token = login_response.json()["access_token"]
-
-    headers = {"Authorization": f"Bearer {access_token}"}
-
-    board_in = {"name": "Test Board", "public": True}
-    create_board_response = await client.post(
-        "/api/v1/board", json=board_in, headers=headers
-    )
-    board_id = create_board_response.json()["id"]
-
+async def test_delete_post(client, create_board):
+    board, headers = await create_board()
     post_in = {
-        "board_id": board_id,
+        "board_id": board["id"],
         "title": "Test Post",
         "content": "This is a test post.",
     }
@@ -157,44 +112,26 @@ async def test_delete_post(client, async_db_session):
 
     response = await client.delete(f"/api/v1/post/{post_id}", headers=headers)
     assert response.status_code == status.HTTP_200_OK
-    assert response.json() == {"message": "Post deleted successfully"}
+    assert response.json() == {"message": "Post deleted"}
 
     response = await client.get(f"/api/v1/post/{post_id}", headers=headers)
     assert response.status_code == status.HTTP_404_NOT_FOUND
 
 
 @pytest.mark.asyncio
-async def test_list_posts(client, async_db_session):
-    account_in = {
-        "fullname": "Test User",
-        "email": "testuser@example.com",
-        "password": "password123",
-    }
-    created_account = await client.post("/api/v1/signup", json=account_in)
-    login_response = await client.post(
-        "/api/v1/login",
-        data={"username": "testuser@example.com", "password": "password123"},
-    )
-    access_token = login_response.json()["access_token"]
-
-    headers = {"Authorization": f"Bearer {access_token}"}
-
-    board_in = {"name": "Test Board", "public": True}
-    create_board_response = await client.post(
-        "/api/v1/board", json=board_in, headers=headers
-    )
-    board_id = create_board_response.json()["id"]
+async def test_list_posts(client, create_board):
+    board, headers = await create_board()
 
     for i in range(15):
         post_in = {
-            "board_id": board_id,
+            "board_id": board["id"],
             "title": f"Test Post {i}",
             "content": "This is a test post.",
         }
         await client.post("/api/v1/post", json=post_in, headers=headers)
 
     response = await client.get(
-        f"/api/v1/posts?board_id={board_id}&limit=10", headers=headers
+        f"/api/v1/posts?board_id={board['id']}&limit=10", headers=headers
     )
     assert response.status_code == status.HTTP_200_OK
     posts = response.json()
@@ -203,7 +140,7 @@ async def test_list_posts(client, async_db_session):
     assert posts["next_cursor"] is not None
 
     response = await client.get(
-        f"/api/v1/posts?board_id={board_id}&limit=10&cursor={posts['next_cursor']}",
+        f"/api/v1/posts?board_id={board['id']}&limit=10&cursor={posts['next_cursor']}",
         headers=headers,
     )
     assert response.status_code == status.HTTP_200_OK

@@ -1,13 +1,19 @@
 from typing import Optional
 
-from fastapi import APIRouter, Depends, HTTPException, Query
+from fastapi import APIRouter, Depends, Query
 from sqlalchemy.ext.asyncio import AsyncSession
 
-from app.crud.post import create_post, get_posts_by_board, update_post
 from app.db.models import Account
 from app.db.session import get_db
 from app.dependencies import get_current_account
 from app.schemas.post import PostCreate, PostList, PostOut, PostUpdate
+from app.services.post import (
+    create_post_service,
+    delete_post_service,
+    get_post_service,
+    list_posts_service,
+    update_post_service,
+)
 
 router = APIRouter()
 
@@ -18,11 +24,8 @@ async def create_new_post(
     db: AsyncSession = Depends(get_db),
     current_user: Account = Depends(get_current_account),
 ):
-    new_post = await create_post(db, post, current_user.id)
-    return new_post
-
-
-from app.crud.post import get_post
+    # 시간 복잡도: O(1) + O(1) = O(1)
+    return await create_post_service(post, current_user.id, db)
 
 
 @router.get("/post/{post_id}", response_model=PostOut)
@@ -31,10 +34,8 @@ async def read_post(
     db: AsyncSession = Depends(get_db),
     current_user: Account = Depends(get_current_account),
 ):
-    db_post = await get_post(db, post_id, current_user.id)
-    if not db_post:
-        raise HTTPException(status_code=404, detail="Post not found")
-    return db_post
+    # 시간 복잡도: O(1) + O(1) + O(1) = O(1)
+    return await get_post_service(post_id, current_user.id, db)
 
 
 @router.put("/post/{post_id}", response_model=PostOut)
@@ -44,34 +45,31 @@ async def update_existing_post(
     db: AsyncSession = Depends(get_db),
     current_user: Account = Depends(get_current_account),
 ):
-    updated_post = await update_post(db, post, post_id, current_user.id)
-    if not updated_post:
-        raise HTTPException(status_code=404, detail="Post not found or not permitted")
-    return updated_post
+    # 시간 복잡도: O(1) + O(1) + O(1) = O(1)
+    return await update_post_service(post_id, post, current_user.id, db)
 
 
-from app.crud.post import delete_post
-
-
-@router.delete("/post/{post_id}", response_model=None)
+@router.delete("/post/{post_id}")
 async def delete_existing_post(
     post_id: int,
     db: AsyncSession = Depends(get_db),
     current_user: Account = Depends(get_current_account),
 ):
-    await delete_post(db, post_id, current_user.id)
-    return {"message": "Post deleted successfully"}
+    # 시간 복잡도: O(1) + O(1) + O(1) = O(1)
+    await delete_post_service(post_id, current_user.id, db)
+    return {"message": "Post deleted"}
 
 
 @router.get("/posts", response_model=PostList)
 async def list_posts(
     board_id: int,
-    limit: int = Query(10, le=100),
-    cursor: Optional[int] = Query(None),
     db: AsyncSession = Depends(get_db),
     current_user: Account = Depends(get_current_account),
+    limit: int = Query(10, le=100),
+    cursor: Optional[int] = Query(None),
 ):
-    total, posts, next_cursor = await get_posts_by_board(
-        db, board_id, current_user.id, limit=limit, cursor=cursor
+    # 시간 복잡도: O(log n) (커서를 사용하는 경우)
+    total, posts, next_cursor = await list_posts_service(
+        board_id, current_user.id, limit, cursor, db
     )
     return {"posts": posts, "total": total, "next_cursor": next_cursor}
