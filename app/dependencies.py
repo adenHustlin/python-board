@@ -3,13 +3,12 @@ from jose import JWTError, jwt
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.core.config import settings
-from app.crud.account import get_account_by_id
 from app.db.session import get_db
+from app.repositories.account import AccountRepository
 from app.schemas.account import TokenData
 from app.services.auth import oauth2_scheme, redis_client
 
 
-# Time complexity: O(1) for each database operation
 async def get_current_account(
     db: AsyncSession = Depends(get_db), token: str = Depends(oauth2_scheme)
 ):
@@ -32,14 +31,13 @@ async def get_current_account(
     # Check Redis for the session
     redis_token = await redis_client.get(f"session:{account_id}")
     if redis_token:
-        return await get_account_by_id(db, account_id=token_data.account_id)
+        return await AccountRepository.get_by_id(db, account_id=token_data.account_id)
 
     # Check the database if Redis session is not found
-    account = await get_account_by_id(db, account_id=token_data.account_id)
+    account = await AccountRepository.get_by_id(db, account_id=token_data.account_id)
     if account is None:
         raise credentials_exception
 
-    # Handle session expiry or invalidation if necessary
     raise HTTPException(
         status_code=status.HTTP_401_UNAUTHORIZED, detail="Session expired or invalid"
     )

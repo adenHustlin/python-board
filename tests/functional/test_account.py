@@ -4,8 +4,34 @@ from fastapi import status
 from app.schemas.account import AccountCreate
 
 
+@pytest.fixture
+async def create_account(client):
+    async def _create_account(email: str, password: str, fullname: str = "Test User"):
+        account_in = AccountCreate(fullname=fullname, email=email, password=password)
+        response = await client.post("/api/v1/signup", json=account_in.dict())
+        assert response.status_code == status.HTTP_200_OK
+        return response.json()
+
+    return _create_account
+
+
+@pytest.fixture
+async def login_account(client, create_account):
+    async def _login_account(email: str, password: str):
+        # 시간 복잡도: O(1)
+        await create_account(email=email, password=password)
+        response = await client.post(
+            "/api/v1/login",
+            data={"username": email, "password": password},
+        )
+        assert response.status_code == status.HTTP_200_OK
+        return response.json()
+
+    return _login_account
+
+
 @pytest.mark.asyncio
-async def test_signup(client, async_db_session):
+async def test_signup(client):
     account_in = AccountCreate(
         fullname="Test Account", email="test@example.com", password="password123"
     )
@@ -17,33 +43,17 @@ async def test_signup(client, async_db_session):
 
 
 @pytest.mark.asyncio
-async def test_login(client, async_db_session):
-    account_in = AccountCreate(
-        fullname="Test User", email="testuser@example.com", password="password123"
-    )
-    await client.post("/api/v1/signup", json=account_in.dict())
-    response = await client.post(
-        "/api/v1/login",
-        data={"username": "testuser@example.com", "password": "password123"},
-    )
-    assert response.status_code == status.HTTP_200_OK
-    token = response.json()
+async def test_login(client, login_account):
+    token = await login_account(email="testuser@example.com", password="password123")
     assert "access_token" in token
     assert token["token_type"] == "bearer"
 
 
 @pytest.mark.asyncio
-async def test_logout(client, async_db_session):
-    account_in = AccountCreate(
-        fullname="Test User", email="testuser@example.com", password="password123"
-    )
-    await client.post("/api/v1/signup", json=account_in.dict())
-    response = await client.post(
-        "/api/v1/login",
-        data={"username": "testuser@example.com", "password": "password123"},
-    )
-    token = response.json()["access_token"]
-    headers = {"Authorization": f"Bearer {token}"}
+async def test_logout(client, login_account):
+    token = await login_account(email="testuser@example.com", password="password123")
+    access_token = token["access_token"]
+    headers = {"Authorization": f"Bearer {access_token}"}
     response = await client.post("/api/v1/logout", headers=headers)
     assert response.status_code == status.HTTP_200_OK
     assert response.json() == {"message": "Logged out successfully"}

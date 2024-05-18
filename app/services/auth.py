@@ -6,23 +6,22 @@ from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.core.config import settings
 from app.core.security import create_access_token, verify_password
-from app.crud.account import get_account_by_email
+from app.repositories.account import AccountRepository
+from app.utils.exceptions import raise_unauthorized
 
 oauth2_scheme = OAuth2PasswordBearer(tokenUrl="api/v1/login")
 
-# Initialize Redis client
+# Redis 클라이언트 초기화
 redis_client = redis.from_url(settings.REDIS_URL)
 
 
-# Time complexity: O(1) for each database operation
 async def authenticate_account(db: AsyncSession, email: str, password: str):
-    account = await get_account_by_email(db, email)
+    account = await AccountRepository.get_by_email(db, email)
     if not account or not verify_password(password, account.hashed_password):
-        return False
+        raise_unauthorized("Incorrect email or password", code=4012)
     return account
 
 
-# Time complexity: O(1)
 async def create_session(account_id: int):
     access_token_expires = timedelta(minutes=settings.ACCESS_TOKEN_EXPIRE_MINUTES)
     access_token = create_access_token(
@@ -36,6 +35,5 @@ async def create_session(account_id: int):
     return access_token
 
 
-# Time complexity: O(1)
 async def destroy_session(account_id: int):
     await redis_client.delete(f"session:{account_id}")
