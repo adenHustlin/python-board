@@ -45,12 +45,29 @@ class BoardRepository:
             await db.commit()
 
     @staticmethod
+    async def increment_post_count(db: AsyncSession, board_id: int):
+        # 시간 복잡도: O(1)
+        db_board = await BoardRepository.get_board(db, board_id)
+        if db_board:
+            db_board.post_count += 1
+            await db.commit()
+
+    @staticmethod
+    async def decrement_post_count(db: AsyncSession, board_id: int):
+        # 시간 복잡도: O(1)
+        db_board = await BoardRepository.get_board(db, board_id)
+        if db_board:
+            db_board.post_count -= 1
+            await db.commit()
+
+    @staticmethod
     async def get_boards(
         db: AsyncSession,
         user_id: int,
         limit: int = 10,
         cursor: Optional[int] = None,
         offset: int = 0,
+        order_by_post_count: bool = False,
     ) -> (int, list[Board], Optional[int]):
         # 시간 복잡도: O(n) 또는 O(log n) (커서를 사용하는 경우)
         # 커서를 사용하지 않는 경우, 전체 결과 집합을 가져오므로 O(n)
@@ -70,7 +87,15 @@ class BoardRepository:
         total_result = await db.execute(total_query)
         total = total_result.scalar()
 
-        query = base_query.order_by(Board.id).offset(offset).limit(limit + 1)
+        if order_by_post_count:
+            query = (
+                base_query.order_by(Board.post_count.desc(), Board.id)
+                .offset(offset)
+                .limit(limit + 1)
+            )
+        else:
+            query = base_query.order_by(Board.id).offset(offset).limit(limit + 1)
+
         result = await db.execute(query)
         boards = result.scalars().all()
 

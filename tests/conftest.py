@@ -1,9 +1,7 @@
 import asyncio
 
 import pytest
-from fastapi import FastAPI
 from httpx import AsyncClient
-from sqlalchemy import event
 from sqlalchemy.ext.asyncio import AsyncSession, create_async_engine
 from sqlalchemy.orm import sessionmaker
 

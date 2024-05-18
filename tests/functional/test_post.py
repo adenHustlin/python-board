@@ -1,6 +1,7 @@
 import pytest
 from fastapi import status
 
+from app.repositories.board import BoardRepository
 from app.schemas.board import BoardCreate
 
 
@@ -37,7 +38,7 @@ async def create_board(client, get_token_header):
 
 
 @pytest.mark.asyncio
-async def test_create_new_post(client, create_board):
+async def test_create_new_post(client, create_board, async_db_session):
     board, headers = await create_board()
     post_in = {
         "board_id": board["id"],
@@ -50,6 +51,10 @@ async def test_create_new_post(client, create_board):
     assert post["title"] == "Test Post"
     assert post["content"] == "This is a test post."
     assert post["owner_id"] == board["owner_id"]
+
+    # Check if post_count is incremented
+    db_board = await BoardRepository.get_board(async_db_session, board["id"])
+    assert db_board.post_count == 1
 
 
 @pytest.mark.asyncio
@@ -98,7 +103,7 @@ async def test_update_post(client, create_board):
 
 
 @pytest.mark.asyncio
-async def test_delete_post(client, create_board):
+async def test_delete_post(client, create_board, async_db_session):
     board, headers = await create_board()
     post_in = {
         "board_id": board["id"],
@@ -116,6 +121,10 @@ async def test_delete_post(client, create_board):
 
     response = await client.get(f"/api/v1/post/{post_id}", headers=headers)
     assert response.status_code == status.HTTP_404_NOT_FOUND
+
+    # Check if post_count is decremented
+    db_board = await BoardRepository.get_board(async_db_session, board["id"])
+    assert db_board.post_count == 0
 
 
 @pytest.mark.asyncio

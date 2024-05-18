@@ -2,6 +2,7 @@ import pytest
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.db.models import Account, Board
+from app.repositories.board import BoardRepository
 from app.repositories.post import PostRepository
 from app.schemas.post import PostCreate, PostUpdate
 
@@ -53,6 +54,10 @@ async def test_create_post(
     assert post.content == "This is a test post."
     assert post.owner_id == create_test_account.id
 
+    # Check if post_count is incremented
+    db_board = await BoardRepository.get_board(async_db_session, create_test_board.id)
+    assert db_board.post_count == 1
+
 
 @pytest.mark.asyncio
 async def test_get_post(async_db_session: AsyncSession, create_test_post):
@@ -61,6 +66,7 @@ async def test_get_post(async_db_session: AsyncSession, create_test_post):
     assert fetched_post is not None
     assert fetched_post.title == "Test Post"
     assert fetched_post.content == "This is a test post."
+    assert fetched_post.owner_id == post.owner_id
 
 
 @pytest.mark.asyncio
@@ -74,14 +80,21 @@ async def test_update_post(async_db_session: AsyncSession, create_test_post):
     )
     assert updated_post.title == "Updated Post"
     assert updated_post.content == "This is an updated test post."
+    assert updated_post.owner_id == post.owner_id
 
 
 @pytest.mark.asyncio
-async def test_delete_post(async_db_session: AsyncSession, create_test_post):
+async def test_delete_post(
+    async_db_session: AsyncSession, create_test_post, create_test_board
+):
     post = await create_test_post(title="Test Post")
     await PostRepository.delete_post(async_db_session, post.id)
     fetched_post = await PostRepository.get_post(async_db_session, post.id)
     assert fetched_post is None
+
+    # Check if post_count is decremented
+    db_board = await BoardRepository.get_board(async_db_session, create_test_board.id)
+    assert db_board.post_count == 0
 
 
 @pytest.mark.asyncio

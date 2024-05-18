@@ -41,9 +41,14 @@ async def delete_board_service(board_id: int, user_id: int, db: AsyncSession):
 
 
 async def list_boards_service(
-    user_id: int, limit: int, cursor: Optional[int], offset: int, db: AsyncSession
+    user_id: int,
+    limit: int,
+    cursor: Optional[int],
+    offset: int,
+    db: AsyncSession,
+    order_by_post_count: bool,
 ):
     total, boards, next_cursor = await BoardRepository.get_boards(
-        db, user_id, limit, cursor, offset
+        db, user_id, limit, cursor, offset, order_by_post_count
     )
     return total, boards, next_cursor

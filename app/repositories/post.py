@@ -5,6 +5,7 @@ from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy.future import select
 
 from app.db.models import Post
+from app.repositories.board import BoardRepository
 from app.schemas.post import PostCreate, PostUpdate
 
 
@@ -21,6 +22,9 @@ class PostRepository:
         db.add(db_post)
         await db.commit()
         await db.refresh(db_post)
+
+        await BoardRepository.increment_post_count(db, post.board_id)
+
         return db_post
 
     @staticmethod
@@ -45,8 +49,11 @@ class PostRepository:
         # 시간 복잡도: O(1)
         db_post = await PostRepository.get_post(db, post_id)
         if db_post:
+            board_id = db_post.board_id
             await db.delete(db_post)
             await db.commit()
+
+            await BoardRepository.decrement_post_count(db, board_id)
 
     @staticmethod
     async def get_posts_by_board(

@@ -67,9 +67,10 @@ async def list_boards(
     limit: int = Query(10, le=100),
     cursor: Optional[int] = Query(None),
     offset: int = Query(0, ge=0),
+    order_by_post_count: bool = Query(False),
 ):
     # 시간 복잡도: O(n) 또는 O(log n) (커서를 사용하는 경우)
     total, boards, next_cursor = await list_boards_service(
-        current_user.id, limit, cursor, offset, db
+        current_user.id, limit, cursor, offset, db, order_by_post_count
     )
     return {"boards": boards, "total": total, "next_cursor": next_cursor}
