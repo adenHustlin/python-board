@@ -1,19 +1,19 @@
 from typing import Optional
 
-from fastapi import APIRouter, Depends, HTTPException, Query
+from fastapi import APIRouter, Depends, Query
 from sqlalchemy.ext.asyncio import AsyncSession
 
-from app.crud.board import (
-    create_board,
-    delete_board,
-    get_board,
-    get_boards,
-    update_board,
-)
 from app.db.models import Account
 from app.db.session import get_db
 from app.dependencies import get_current_account
 from app.schemas.board import BoardCreate, BoardList, BoardOut, BoardUpdate
+from app.services.board import (
+    create_board_service,
+    delete_board_service,
+    get_board_service,
+    list_boards_service,
+    update_board_service,
+)
 
 router = APIRouter()
 
@@ -24,8 +24,8 @@ async def create_new_board(
     db: AsyncSession = Depends(get_db),
     current_user: Account = Depends(get_current_account),
 ):
-    new_board = await create_board(db, board, current_user.id)
-    return new_board
+    # 시간 복잡도: O(1)
+    return await create_board_service(board, current_user.id, db)
 
 
 @router.get("/board/{board_id}", response_model=BoardOut)
@@ -34,10 +34,8 @@ async def read_board(
     db: AsyncSession = Depends(get_db),
     current_user: Account = Depends(get_current_account),
 ):
-    db_board = await get_board(db, board_id)
-    if not db_board or (not db_board.public and db_board.owner_id != current_user.id):
-        raise HTTPException(status_code=404, detail="Board not found")
-    return db_board
+    # 시간 복잡도: O(1) + O(1) + O(1) = O(1)
+    return await get_board_service(board_id, current_user.id, db)
 
 
 @router.put("/board/{board_id}", response_model=BoardOut)
@@ -47,10 +45,8 @@ async def update_existing_board(
     db: AsyncSession = Depends(get_db),
     current_user: Account = Depends(get_current_account),
 ):
-    updated_board = await update_board(db, board, board_id, current_user.id)
-    if not updated_board:
-        raise HTTPException(status_code=404, detail="Board not found or not permitted")
-    return updated_board
+    # 시간 복잡도: O(1) + O(1) = O(1)
+    return await update_board_service(board_id, board, current_user.id, db)
 
 
 @router.delete("/board/{board_id}")
@@ -59,7 +55,8 @@ async def delete_existing_board(
     db: AsyncSession = Depends(get_db),
     current_user: Account = Depends(get_current_account),
 ):
-    await delete_board(db, board_id, current_user.id)
+    # 시간 복잡도: O(1) + O(1) = O(1)
+    await delete_board_service(board_id, current_user.id, db)
     return {"message": "Board deleted"}
 
 
@@ -71,7 +68,8 @@ async def list_boards(
     cursor: Optional[int] = Query(None),
     offset: int = Query(0, ge=0),
 ):
-    total, boards, next_cursor = await get_boards(
-        db, current_user.id, limit=limit, cursor=cursor, offset=offset
+    # 시간 복잡도: O(n) 또는 O(log n) (커서를 사용하는 경우)
+    total, boards, next_cursor = await list_boards_service(
+        current_user.id, limit, cursor, offset, db
     )
     return {"boards": boards, "total": total, "next_cursor": next_cursor}
